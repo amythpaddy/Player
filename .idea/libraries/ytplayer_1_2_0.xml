@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="ytplayer-1.2.0">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.android/build-cache/25bfc629c9b8996bb7a83445aa9da48fa81d78b5/output/res" />
+      <root url="jar://$USER_HOME$/.android/build-cache/25bfc629c9b8996bb7a83445aa9da48fa81d78b5/output/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.jaedongchicken/ytplayer/1.2.0/1ae7b8ea872c5f5b7138ddfee8240c037438f54b/ytplayer-1.2.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
