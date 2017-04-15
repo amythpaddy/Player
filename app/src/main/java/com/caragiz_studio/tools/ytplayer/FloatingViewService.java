@@ -1,27 +1,46 @@
 package com.caragiz_studio.tools.ytplayer;
 
+import android.animation.Animator;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
-import android.opengl.Visibility;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewAnimationUtils;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.animation.LayoutAnimationController;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.Toast;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+
+import com.google.firebase.analytics.FirebaseAnalytics;
+
 /**
  * Created by caragiz on 13/4/17.
  */
 public class FloatingViewService extends Service {
     private WindowManager mWindowManager;
     private View mFloatingView;
+    private WindowManager.LayoutParams params;
+    View collapsedView;
+    View expandedView;
+    private boolean fullScreen = false;
+    private boolean searching = false;
 
     public FloatingViewService() {
     }
@@ -31,26 +50,70 @@ public class FloatingViewService extends Service {
         return null;
     }
 
+    Long time;
+    FirebaseAnalytics analytics;
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        Bundle bundle = new Bundle();
+        time = System.currentTimeMillis() - time;
+        bundle.putString("Start_time", String.valueOf(System.currentTimeMillis()));
+        analytics.logEvent("Test_Data", bundle);
+
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+        analytics = FirebaseAnalytics.getInstance(this);
+        Bundle bundle = new Bundle();
+        time = System.currentTimeMillis();
+        bundle.putString("Start_time", String.valueOf(System.currentTimeMillis()));
+        analytics.logEvent("Test_Data", bundle);
         //Inflate the floating view layout we created
         mFloatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_widget, null);
 
-        WebView webView = (WebView)mFloatingView.findViewById(R.id.webview);
+        collapsedView = mFloatingView.findViewById(R.id.collapse_view);
+        //The root element of the expanded view layout
+        expandedView = mFloatingView.findViewById(R.id.expanded_container);
+
+
+        final WebView webView = (WebView) mFloatingView.findViewById(R.id.webview);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.loadUrl("http://www.youtube.com");
 //        webView.setWebViewClient(new myWebClient());
-        webView.setWebViewClient(new WebViewClient(){
+        webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return false;
             }
         });
+        webView.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    switch (keyCode) {
+                        case KeyEvent.KEYCODE_BACK:
+                            if (webView.canGoBack())
+                                webView.goBack();
+                            return true;
+                    }
+                }
+                return false;
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient());
 
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int deviceWidth = metrics.widthPixels;
+        int deviceHeight = metrics.heightPixels;
+
+        RelativeLayout.LayoutParams prams = new RelativeLayout.LayoutParams(deviceWidth, deviceHeight / 2);
+        expandedView.setLayoutParams(prams);
+
         //Add the view to the window.
-        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_PHONE,
@@ -67,75 +130,67 @@ public class FloatingViewService extends Service {
         mWindowManager.addView(mFloatingView, params);
 
         //The root element of the collapsed view layout
-        final View collapsedView = mFloatingView.findViewById(R.id.collapse_view);
-        //The root element of the expanded view layout
-        final View expandedView = mFloatingView.findViewById(R.id.expanded_container);
-
-        //Set the close button
-        ImageView closeButtonCollapsed = (ImageView) mFloatingView.findViewById(R.id.close_btn);
-        closeButtonCollapsed.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                //close the service and remove the from from the window
-                stopSelf();
-            }
-        });
-
-       /* //Set the view while floating view is expanded.
-        //Set the play button.
-        ImageView playButton = (ImageView) mFloatingView.findViewById(R.id.play_btn);
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(FloatingViewService.this, "Playing the song.", Toast.LENGTH_LONG).show();
-            }
-        });
-
-
-        //Set the next button.
-        ImageView nextButton = (ImageView) mFloatingView.findViewById(R.id.next_btn);
-        nextButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(FloatingViewService.this, "Playing next song.", Toast.LENGTH_LONG).show();
-            }
-        });
-
-
-        //Set the pause button.
-        ImageView prevButton = (ImageView) mFloatingView.findViewById(R.id.prev_btn);
-        prevButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(FloatingViewService.this, "Playing previous song.", Toast.LENGTH_LONG).show();
-            }
-        });*/
 
 
         //Set the close button
-        ImageView closeButton = (ImageView) mFloatingView.findViewById(R.id.close_button);
+        final ImageView closeButton = (ImageView) mFloatingView.findViewById(R.id.minimise_button);
         closeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                webView.animate().alpha(0).setDuration(200);
                 collapsedView.setVisibility(View.VISIBLE);
                 expandedView.setVisibility(View.GONE);
+                if(searching) {
+                    mFloatingView.findViewById(R.id.searchContainer).setVisibility(View.INVISIBLE);
+                    searching = !searching;
+                }
+
+                webView.clearFocus();
+                mFloatingView.clearFocus();
+
+                params = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.TYPE_PHONE,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT);
+                params.gravity = Gravity.LEFT;
+                //Add the view to the window
+                if (mWindowManager == null)
+                    mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                mWindowManager.updateViewLayout(mFloatingView, params);
             }
         });
 
 
         //Open the application on thi button click
-        ImageView openButton = (ImageView) mFloatingView.findViewById(R.id.open_button);
+        ImageView openButton = (ImageView) mFloatingView.findViewById(R.id.close_button);
         openButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //Open the application  click.
-                Intent intent = new Intent(FloatingViewService.this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
-
-
+                Log.d("Status", "Stopping");
                 //close the service and remove view from the view hierarchy
                 stopSelf();
+            }
+        });
+        ImageView settingsBtn = (ImageView) mFloatingView.findViewById(R.id.settings_button);
+        settingsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                RelativeLayout.LayoutParams prams;
+                DisplayMetrics metrics = getResources().getDisplayMetrics();
+                int deviceWidth = metrics.widthPixels;
+                int deviceHeight = metrics.heightPixels;
+                if (fullScreen) {
+                    prams = new RelativeLayout.LayoutParams(deviceWidth, deviceHeight / 2);
+                } else {
+                    prams = new RelativeLayout.LayoutParams(deviceWidth, deviceHeight-200);
+                }
+                fullScreen = !fullScreen;
+
+                expandedView.setLayoutParams(prams);
             }
         });
 
@@ -169,11 +224,33 @@ public class FloatingViewService extends Service {
                         //So that is click event.
                         if (Xdiff < 10 && Ydiff < 10) {
                             if (isViewCollapsed()) {
-                                //When user clicks on the image view of the collapsed layout,
-                                //visibility of the collapsed layout will be changed to "View.GONE"
-                                //and expanded view will become visible.
+                                int cx = expandedView.getWidth() / 2;
+                                int cy = expandedView.getHeight() / 2;
+
+// get the final radius for the clipping circle
+                                float finalRadius = (float) Math.hypot(cx, cy);
+
+// create the animator for this view (the start radius is zero)
+                                Animator anim =
+                                        ViewAnimationUtils.createCircularReveal(expandedView, cx, cy, 0, finalRadius);
+
+// make the view visible and start the animation
                                 collapsedView.setVisibility(View.GONE);
                                 expandedView.setVisibility(View.VISIBLE);
+                                webView.animate().alpha(1).setDuration(500);
+                                anim.start();
+
+                                params = new WindowManager.LayoutParams(
+                                        WindowManager.LayoutParams.WRAP_CONTENT,
+                                        WindowManager.LayoutParams.WRAP_CONTENT,
+                                        WindowManager.LayoutParams.TYPE_PHONE,
+                                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                                        PixelFormat.TRANSLUCENT);
+                                params.gravity = Gravity.LEFT;
+                                //Add the view to the window
+                                if (mWindowManager == null)
+                                    mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                                mWindowManager.updateViewLayout(mFloatingView, params);
                             }
                         }
                         return true;
@@ -182,12 +259,51 @@ public class FloatingViewService extends Service {
                         params.x = initialX + (int) (event.getRawX() - initialTouchX);
                         params.y = initialY + (int) (event.getRawY() - initialTouchY);
 
-
+                        if (event.getRawX() > getResources().getDisplayMetrics().widthPixels / 2)
+                            params.gravity = Gravity.RIGHT;
+                        else
+                            params.gravity = Gravity.LEFT;
                         //Update the layout with new X & Y coordinate
                         mWindowManager.updateViewLayout(mFloatingView, params);
                         return true;
                 }
                 return false;
+            }
+        });
+
+        final ImageView search = (ImageView)mFloatingView.findViewById(R.id.start_search);
+        search.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LinearLayout searchContainer = (LinearLayout)mFloatingView.findViewById(R.id.searchContainer);
+                if(!searching){
+
+                    searchContainer.setVisibility(View.VISIBLE);
+                    if(fullScreen){
+                        ViewGroup.LayoutParams currentparams = expandedView.getLayoutParams();
+                        currentparams.height = currentparams.height - (2*searchContainer.getLayoutParams().height);
+                        expandedView.setLayoutParams(currentparams);
+                    }
+                }else {
+                    searchContainer.setVisibility(View.INVISIBLE);
+                    if(fullScreen){
+                        ViewGroup.LayoutParams currentparams = expandedView.getLayoutParams();
+                        currentparams.height = getResources().getDisplayMetrics().heightPixels-200;
+                        expandedView.setLayoutParams(currentparams);
+                    }
+                }
+
+                searching = !searching;
+            }
+        });
+
+        ImageButton searchButton = (ImageButton)mFloatingView.findViewById(R.id.search_btn);
+        searchButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String search = ((EditText)mFloatingView.findViewById(R.id.searchBox)).getText().toString();
+                webView.loadUrl("https://www.youtube.com/results?search_query="+search);
+                mFloatingView.findViewById(R.id.searchBox).clearFocus();
             }
         });
     }

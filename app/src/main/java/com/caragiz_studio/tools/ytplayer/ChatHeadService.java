@@ -29,7 +29,7 @@ public class ChatHeadService extends Service {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
                 PixelFormat.TRANSLUCENT);
 
         params.gravity = Gravity.TOP | Gravity.LEFT;
@@ -55,8 +55,7 @@ public class ChatHeadService extends Service {
                     case MotionEvent.ACTION_UP:
                         return true;
                     case MotionEvent.ACTION_MOVE:
-                        params.x = initialX
-                                + (int) (event.getRawX() - initialTouchX);
+                        params.x = 0;
                         params.y = initialY
                                 + (int) (event.getRawY() - initialTouchY);
                         windowManager.updateViewLayout(chatHead, params);
