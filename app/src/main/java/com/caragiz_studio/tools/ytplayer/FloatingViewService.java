@@ -19,6 +19,7 @@ import android.view.WindowManager;
 import android.view.animation.LayoutAnimationController;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -39,7 +40,7 @@ public class FloatingViewService extends Service {
     private WindowManager.LayoutParams params;
     View collapsedView;
     View expandedView;
-    private boolean fullScreen = false;
+    private boolean fullScreen = true;
     private boolean searching = false;
 
     public FloatingViewService() {
@@ -89,6 +90,7 @@ public class FloatingViewService extends Service {
                 return false;
             }
         });
+        webView.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
         webView.setOnKeyListener(new View.OnKeyListener() {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
@@ -114,7 +116,7 @@ public class FloatingViewService extends Service {
 
         //Add the view to the window.
         params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_PHONE,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -195,82 +197,87 @@ public class FloatingViewService extends Service {
         });
 
         //Drag and move floating view using user's touch action.
-        mFloatingView.findViewById(R.id.root_container).setOnTouchListener(new View.OnTouchListener() {
-            private int initialX;
-            private int initialY;
-            private float initialTouchX;
-            private float initialTouchY;
+        try {
+            ImageView collpasedView = (ImageView) mFloatingView.findViewById(R.id.collapsed_iv);
+            collpasedView.setOnTouchListener(new View.OnTouchListener() {
+                private int initialX;
+                private int initialY;
+                private float initialTouchX;
+                private float initialTouchY;
 
 
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
 
-                        //remember the initial position.
-                        initialX = params.x;
-                        initialY = params.y;
+                            //remember the initial position.
+                            initialX = params.x;
+                            initialY = params.y;
 
-                        //get the touch location
-                        initialTouchX = event.getRawX();
-                        initialTouchY = event.getRawY();
-                        return true;
-                    case MotionEvent.ACTION_UP:
-                        int Xdiff = (int) (event.getRawX() - initialTouchX);
-                        int Ydiff = (int) (event.getRawY() - initialTouchY);
+                            //get the touch location
+                            initialTouchX = event.getRawX();
+                            initialTouchY = event.getRawY();
+                            return true;
+                        case MotionEvent.ACTION_UP:
+                            int Xdiff = (int) (event.getRawX() - initialTouchX);
+                            int Ydiff = (int) (event.getRawY() - initialTouchY);
 
 
-                        //The check for Xdiff <10 && YDiff< 10 because sometime elements moves a little while clicking.
-                        //So that is click event.
-                        if (Xdiff < 10 && Ydiff < 10) {
-                            if (isViewCollapsed()) {
-                                int cx = expandedView.getWidth() / 2;
-                                int cy = expandedView.getHeight() / 2;
+                            //The check for Xdiff <10 && YDiff< 10 because sometime elements moves a little while clicking.
+                            //So that is click event.
+                            if (Xdiff < 10 && Ydiff < 10) {
+                                if (isViewCollapsed()) {
+                                    int cx = expandedView.getWidth() / 2;
+                                    int cy = expandedView.getHeight() / 2;
 
 // get the final radius for the clipping circle
-                                float finalRadius = (float) Math.hypot(cx, cy);
+                                    float finalRadius = (float) Math.hypot(cx, cy);
 
 // create the animator for this view (the start radius is zero)
-                                Animator anim =
-                                        ViewAnimationUtils.createCircularReveal(expandedView, cx, cy, 0, finalRadius);
+                                    Animator anim =
+                                            ViewAnimationUtils.createCircularReveal(expandedView, cx, cy, 0, finalRadius);
 
 // make the view visible and start the animation
-                                collapsedView.setVisibility(View.GONE);
-                                expandedView.setVisibility(View.VISIBLE);
-                                webView.animate().alpha(1).setDuration(500);
-                                anim.start();
+                                    collapsedView.setVisibility(View.INVISIBLE);
+                                    expandedView.setVisibility(View.VISIBLE);
+                                    webView.animate().alpha(1).setDuration(500);
+                                    anim.start();
 
-                                params = new WindowManager.LayoutParams(
-                                        WindowManager.LayoutParams.WRAP_CONTENT,
-                                        WindowManager.LayoutParams.WRAP_CONTENT,
-                                        WindowManager.LayoutParams.TYPE_PHONE,
-                                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-                                        PixelFormat.TRANSLUCENT);
-                                params.gravity = Gravity.LEFT;
-                                //Add the view to the window
-                                if (mWindowManager == null)
-                                    mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-                                mWindowManager.updateViewLayout(mFloatingView, params);
+                                    params = new WindowManager.LayoutParams(
+                                            WindowManager.LayoutParams.MATCH_PARENT,
+                                            WindowManager.LayoutParams.WRAP_CONTENT,
+                                            WindowManager.LayoutParams.TYPE_PHONE,
+                                            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                                            PixelFormat.TRANSLUCENT);
+                                    params.gravity = Gravity.LEFT;
+                                    //Add the view to the window
+                                    if (mWindowManager == null)
+                                        mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                                    mWindowManager.updateViewLayout(mFloatingView, params);
+                                }
                             }
-                        }
-                        return true;
-                    case MotionEvent.ACTION_MOVE:
-                        //Calculate the X and Y coordinates of the view.
-                        params.x = initialX + (int) (event.getRawX() - initialTouchX);
-                        params.y = initialY + (int) (event.getRawY() - initialTouchY);
+                            return true;
+                        case MotionEvent.ACTION_MOVE:
+                            //Calculate the X and Y coordinates of the view.
+                            params.x = initialX + (int) (event.getRawX() - initialTouchX);
+                            params.y = initialY + (int) (event.getRawY() - initialTouchY);
 
-                        if (event.getRawX() > getResources().getDisplayMetrics().widthPixels / 2)
-                            params.gravity = Gravity.RIGHT;
-                        else
-                            params.gravity = Gravity.LEFT;
-                        //Update the layout with new X & Y coordinate
-                        mWindowManager.updateViewLayout(mFloatingView, params);
-                        return true;
+                            if (event.getRawX() > getResources().getDisplayMetrics().widthPixels / 2)
+                                params.gravity = Gravity.RIGHT;
+                            else
+                                params.gravity = Gravity.LEFT;
+                            //Update the layout with new X & Y coordinate
+                            mWindowManager.updateViewLayout(mFloatingView, params);
+                            return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        });
-
+            });
+        }catch (Exception e){
+            e.printStackTrace();
+            Log.e("Error",e.getMessage());
+        }
         final ImageView search = (ImageView)mFloatingView.findViewById(R.id.start_search);
         search.setOnClickListener(new View.OnClickListener() {
             @Override

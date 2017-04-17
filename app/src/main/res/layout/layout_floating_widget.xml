@@ -18,7 +18,7 @@
         <RelativeLayout
             android:id="@+id/collapse_view"
             android:layout_width="wrap_content"
-            android:visibility="visible"
+            android:visibility="invisible"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
@@ -41,7 +41,7 @@
             android:layout_width="400dp"
             android:layout_height="275dp"
             android:background="#73ffffff"
-            android:visibility="gone"
+            android:visibility="visible"
             android:orientation="horizontal"
             android:animateLayoutChanges="true"
             ><!--
